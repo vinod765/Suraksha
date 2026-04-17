@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Databricks
+.databricks/
+.dbx/
+
+# Data files
+*.csv
+*.parquet
+*.json
+!requirements.txt
+
+# Model artifacts
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.pth
+
+# Vector stores
+faiss_index/
+*.faiss
+*.index
+
+# Logs
+*.log
+logs/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Environment
+.env
+.env.local

@@ -1,0 +1,15 @@
+# Suraksha App Requirements
+streamlit==1.31.0
+pandas==2.1.4
+numpy==1.26.3
+mlflow==2.10.0
+sentence-transformers==2.3.1
+faiss-cpu==1.7.4
+torch==2.1.2
+transformers==4.37.0
+databricks-sdk==0.18.0
+gradio==4.16.0
+
+# For IndicTrans2 (Hindi translation)
+indictrans2==0.1.0
+sentencepiece==0.1.99
