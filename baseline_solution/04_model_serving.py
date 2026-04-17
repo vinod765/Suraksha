@@ -1,7 +1,7 @@
 """
-Advanced Model Serving
+Baseline Model Serving
 ----------------------
-Real-time inference endpoint for 9-class fraud detection.
+Real-time inference endpoint for 4-class pattern detection.
 Uses shared RAG pipeline for explanations.
 """
 
@@ -12,6 +12,6 @@ from rag_utils import search_guidelines, generate_explanation
 
 def predict_and_explain(transaction):
     """
-    Predict fraud type and generate RAG-based explanation.
+    Predict fraud pattern and generate RAG-based explanation.
     """
     pass  # Implementation during hackathon
