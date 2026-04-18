@@ -6,11 +6,22 @@
 
 ---
 
+## 🔔 IMPORTANT: Before You Begin
+
+**Replace `<YOUR_EMAIL>` with your actual Databricks workspace email address throughout this guide!**
+
+Example: If your email is `judge@databricks.com`, then:
+* `/Users/<YOUR_EMAIL>/Suraksha/...` becomes `/Users/judge@databricks.com/Suraksha/...`
+
+The notebook auto-detects your username, so you only need to ensure the notebook is uploaded to your workspace at the correct path.
+
+---
+
 ## 📋 Pre-Demo Checklist (Do This First!)
 
 ### ✅ Before You Start:
 - [ ] Open Databricks workspace
-- [ ] Navigate to notebook: `/Users/vinodekdhoke@gmail.com/Suraksha/Suraksha_Fraud_Detection_Demo`
+- [ ] Navigate to notebook: `/Users/<YOUR_EMAIL>/Suraksha/Suraksha_Fraud_Detection_Demo`
 - [ ] Attach to a cluster (any compute will work)
 - [ ] Wait for cluster to be in "Running" state (green indicator)
 - [ ] Have this playbook open on another screen/window
@@ -76,7 +87,7 @@ Kernel restarting...
 
 **What You'll See:**
 ```
-✓ Workspace user detected: vinodekdhoke@gmail.com
+✓ Workspace user detected: <YOUR_EMAIL>
 ✓ Feature names loaded: 38 features
 ✓ Utilities loaded successfully
 ```
@@ -94,7 +105,7 @@ Kernel restarting...
 
 **What You'll See:**
 ```
-✓ Advanced Model loaded from: /Workspace/Users/.../suraksha_advanced.pkl
+✓ Advanced Model loaded from: /Workspace/Users/<YOUR_EMAIL>/Suraksha/models/suraksha_advanced.pkl
   Model type: <class 'xgboost.sklearn.XGBClassifier'>
   Model size: 16.1 MB
   Accuracy: 87.3%
@@ -731,11 +742,17 @@ Kernel restarting...
 
 ---
 
-## 📞 Support Contacts
+## 📞 Support Information
 
-**Project Owner:** Vinod Ekdhoke (vinodekdhoke@gmail.com)
-**Notebook Location:** `/Users/vinodekdhoke@gmail.com/Suraksha/Suraksha_Fraud_Detection_Demo`
-**Documentation:** `/Users/vinodekdhoke@gmail.com/Suraksha/DEMO_RECREATION_GUIDE.md`
+**Project:** Suraksha UPI Fraud Detection System
+**GitHub/Repository:** [If applicable, add link]
+**Documentation:** Available in the `Suraksha` folder
+
+**Notebook Location (in your workspace):**
+* `/Users/<YOUR_EMAIL>/Suraksha/Suraksha_Fraud_Detection_Demo`
+
+**Additional Documentation:**
+* `/Users/<YOUR_EMAIL>/Suraksha/DEMO_RECREATION_GUIDE.md`
 
 ---
 
@@ -743,7 +760,7 @@ Kernel restarting...
 
 **30 Minutes Before:**
 - [ ] Cluster running
-- [ ] Notebook open
+- [ ] Notebook open at correct path
 - [ ] Cells 2-6 executed successfully
 - [ ] Widgets showing (16 in Advanced mode)
 - [ ] This playbook open on second screen
