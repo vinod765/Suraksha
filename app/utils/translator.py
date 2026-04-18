@@ -1,182 +1,97 @@
 """
-Translator Utility
-Simple text translation to Hindi (placeholder implementation)
+Hindi translation utilities
+Uses multiple fallback mechanisms - NO HARDCODED PATHS
 """
 
+from pathlib import Path
 
-# Simple English to Hindi translation dictionary
-TRANSLATION_DICT = {
-    # Fraud Types
-    "Legitimate": "वैध लेनदेन",
-    "Amount Anomaly": "राशि में असामान्यता",
-    "Temporal Anomaly": "समय संबंधी असामान्यता",
-    "Merchant Fraud": "व्यापारी धोखाधड़ी",
-    "High-Risk Pattern": "उच्च जोखिम पैटर्न",
-    "Velocity Fraud": "वेग धोखाधड़ी",
-    "SIM Swap Fraud": "सिम स्वैप धोखाधड़ी",
-    "Device Fraud": "डिवाइस धोखाधड़ी",
-    "Mule Account": "म्यूल खाता",
-    "Beneficiary Fraud": "लाभार्थी धोखाधड़ी",
-    
-    # Common Terms
-    "Transaction": "लेनदेन",
-    "Fraud": "धोखाधड़ी",
-    "Risk": "जोखिम",
-    "Amount": "राशि",
-    "Account": "खाता",
-    "Low": "कम",
-    "Medium": "मध्यम",
-    "High": "उच्च",
-    "Critical": "गंभीर",
-    "Description": "विवरण",
-    "Recommendation": "सिफारिश",
-    "Risk Level": "जोखिम स्तर",
-    
-    # Action Terms
-    "Verify": "सत्यापित करें",
-    "Block": "ब्लॉक करें",
-    "Alert": "चेतावनी",
-    "Freeze": "फ्रीज करें",
-    "Report": "रिपोर्ट करें",
-    "Monitor": "निगरानी करें",
-    "Contact": "संपर्क करें",
-    
-    # RBI Guidelines
-    "RBI Guidelines": "आरबीआई दिशानिर्देश",
-    "RBI advises": "आरबीआई सलाह देता है",
-    "RBI mandates": "आरबीआई अनिवार्य करता है",
-    "RBI requires": "आरबीआई की आवश्यकता है",
-    "RBI Alert": "आरबीआई चेतावनी",
-    
-    # Common Phrases
-    "No action required": "कोई कार्रवाई आवश्यक नहीं",
-    "Transaction can proceed safely": "लेनदेन सुरक्षित रूप से आगे बढ़ सकता है",
-    "Immediate verification required": "तत्काल सत्यापन आवश्यक",
-    "Temporary account freeze": "अस्थायी खाता फ्रीज",
-    "Enhanced monitoring": "उन्नत निगरानी",
-    "Additional authentication": "अतिरिक्त प्रमाणीकरण",
-    "Suspicious activity": "संदिग्ध गतिविधि",
-    "Customer verification": "ग्राहक सत्यापन",
-    
-    # Specific fraud descriptions
-    "Transaction appears normal": "लेनदेन सामान्य प्रतीत होता है",
-    "No suspicious patterns detected": "कोई संदिग्ध पैटर्न नहीं मिला",
-    "Unusually high frequency": "असामान्य रूप से उच्च आवृत्ति",
-    "Recent SIM card change": "हाल ही में सिम कार्ड बदला गया",
-    "New device detected": "नया डिवाइस पाया गया",
-    "Multiple risk indicators": "कई जोखिम संकेतक",
-    "Unusual time": "असामान्य समय",
-    "High-risk merchant": "उच्च जोखिम व्यापारी",
-    
-    # Banking Terms
-    "Bank": "बैंक",
-    "UPI": "यूपीआई",
-    "Transaction limit": "लेनदेन सीमा",
-    "KYC": "केवाईसी",
-    "OTP": "ओटीपी",
-    "Registered mobile": "पंजीकृत मोबाइल",
-    "Account holder": "खाता धारक",
-    "Beneficiary": "लाभार्थी",
-    "Merchant": "व्यापारी",
-    "Payment": "भुगतान"
-}
+# Singleton translator
+_translator = None
 
+def get_translator():
+    """Load translator model once"""
+    global _translator
+    if _translator is None:
+        try:
+            # Try Helsinki-NLP opus-mt model (lightweight)
+            from transformers import pipeline
+            _translator = pipeline("translation_en_to_hi", model="Helsinki-NLP/opus-mt-en-hi")
+            print("✅ Loaded translation model: Helsinki-NLP/opus-mt-en-hi")
+        except Exception as e:
+            print(f"⚠️  Could not load translation model: {e}")
+            print("   Using fallback Hindi translations")
+            _translator = "fallback"
+    return _translator
 
-def translate_to_hindi(text):
+def translate_to_hindi(text_english):
     """
-    Translate English text to Hindi using simple dictionary mapping.
-    Falls back to original text if translation not found.
+    Translate English text to Hindi
     
     Args:
-        text: English text to translate
-        
-    Returns:
-        Translated Hindi text or original text if no translation available
-    """
-    
-    if not text:
-        return text
-    
-    # Convert to string
-    text = str(text)
-    
-    # Check if exact match exists
-    if text in TRANSLATION_DICT:
-        return TRANSLATION_DICT[text]
-    
-    # Try to translate word by word for longer phrases
-    translated_parts = []
-    for word in text.split():
-        # Remove punctuation for matching
-        clean_word = word.strip('.,!?;:')
-        
-        if clean_word in TRANSLATION_DICT:
-            # Preserve original punctuation
-            punctuation = word[len(clean_word):]
-            translated_parts.append(TRANSLATION_DICT[clean_word] + punctuation)
-        else:
-            translated_parts.append(word)
-    
-    translated_text = ' '.join(translated_parts)
-    
-    # If translation looks too similar to original (no Hindi characters), 
-    # return the original text with a note
-    if not any('\u0900' <= c <= '\u097F' for c in translated_text):
-        return f"{text} (अनुवाद उपलब्ध नहीं)"
-    
-    return translated_text
-
-
-def translate_fraud_explanation(explanation):
-    """
-    Translate fraud explanation to Hindi.
-    Attempts to preserve formatting while translating key terms.
-    
-    Args:
-        explanation: Full fraud explanation text
-        
-    Returns:
-        Translated explanation
-    """
-    
-    # Split by lines and translate each line
-    lines = explanation.split('\n')
-    translated_lines = []
-    
-    for line in lines:
-        # Preserve empty lines
-        if not line.strip():
-            translated_lines.append(line)
-            continue
-        
-        # Preserve markdown formatting markers
-        if line.startswith('**') or line.startswith('🚨') or line.startswith('*'):
-            # Translate the content but keep markers
-            translated_lines.append(translate_to_hindi(line))
-        else:
-            translated_lines.append(translate_to_hindi(line))
-    
-    return '\n'.join(translated_lines)
-
-
-def is_hindi(text):
-    """
-    Check if text contains Hindi characters.
-    
-    Args:
-        text: Text to check
-        
-    Returns:
-        Boolean indicating if Hindi characters are present
-    """
-    return any('\u0900' <= c <= '\u097F' for c in str(text))
-
-
-def get_supported_languages():
-    """
-    Get list of supported languages.
+        text_english: English text
     
     Returns:
-        List of supported language codes
+        Hindi translation
     """
-    return ['en', 'hi']
+    try:
+        translator = get_translator()
+        
+        if translator == "fallback":
+            return fallback_hindi_translation(text_english)
+        
+        # Split long text into chunks (max 512 tokens per chunk)
+        max_chunk_length = 400
+        chunks = [text_english[i:i+max_chunk_length] 
+                  for i in range(0, len(text_english), max_chunk_length)]
+        
+        translations = []
+        for chunk in chunks:
+            result = translator(chunk, max_length=512)
+            translations.append(result[0]['translation_text'])
+        
+        return " ".join(translations)
+    
+    except Exception as e:
+        print(f"⚠️  Translation error: {e}")
+        return fallback_hindi_translation(text_english)
+
+def fallback_hindi_translation(text_english):
+    """
+    Fallback Hindi translations for common phrases
+    """
+    # Key phrase mappings
+    translations = {
+        "Velocity Fraud": "वेग धोखाधड़ी (Velocity Fraud)",
+        "Mule Account": "म्यूल अकाउंट (Mule Account)",
+        "SIM Swap": "सिम स्वैप धोखाधड़ी (SIM Swap Fraud)",
+        "Device Takeover": "डिवाइस टेकओवर (Device Takeover)",
+        "Beneficiary Manipulation": "लाभार्थी हेरफेर (Beneficiary Manipulation)",
+        "Amount Anomaly": "राशि असामान्यता (Amount Anomaly)",
+        "Temporal Anomaly": "समय असामान्यता (Temporal Anomaly)",
+        "Merchant Fraud": "व्यापारी धोखाधड़ी (Merchant Fraud)",
+        "Failed-Then-Success": "असफल-फिर-सफल (Failed-Then-Success)",
+        "High-Risk Pattern": "उच्च जोखिम पैटर्न (High-Risk Pattern)",
+        "Merchant Risk": "व्यापारी जोखिम (Merchant Risk)",
+        "FRAUD DETECTED": "धोखाधड़ी का पता चला (FRAUD DETECTED)",
+        "Transaction Appears Legitimate": "लेनदेन वैध प्रतीत होता है (Transaction Appears Legitimate)",
+        "Confidence": "विश्वास स्तर (Confidence)",
+        "Why was this flagged?": "यह क्यों चिह्नित किया गया? (Why was this flagged?)",
+        "Key Indicators": "मुख्य संकेतक (Key Indicators)",
+        "RBI Guideline Reference": "RBI दिशानिर्देश संदर्भ (RBI Guideline Reference)",
+        "Recommended Actions": "अनुशंसित कार्रवाई (Recommended Actions)",
+        "Immediate": "तत्काल (Immediate)",
+        "Security": "सुरक्षा (Security)",
+        "Review": "समीक्षा (Review)",
+        "Report": "रिपोर्ट (Report)",
+        "Stop transaction and contact your bank": "लेनदेन रोकें और अपने बैंक से संपर्क करें",
+        "Change your UPI PIN immediately": "अपना UPI PIN तुरंत बदलें",
+        "Check recent transaction history": "हाल के लेनदेन इतिहास की जांच करें",
+        "File complaint": "शिकायत दर्ज करें",
+        "Your transaction exhibits patterns consistent with": "आपका लेनदेन निम्नलिखित पैटर्न से मेल खाता है:"
+    }
+    
+    result = text_english
+    for en, hi in translations.items():
+        result = result.replace(en, hi)
+    
+    return result

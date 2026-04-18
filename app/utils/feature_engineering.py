@@ -1,158 +1,162 @@
 """
-Feature Engineering Utility
-Converts transaction input into model-ready features
+Feature Engineering for Suraksha
+Generates features for both Advanced and Baseline models
 """
 
-import numpy as np
 import pandas as pd
-from datetime import datetime
+import numpy as np
+from datetime import datetime, timedelta
+import warnings
+warnings.filterwarnings('ignore')
 
+# Import configuration
+from config import config  # FIXED: was 'from app.config import config'
 
-def engineer_baseline_features(input_dict):
+def engineer_advanced_features(df):
     """
-    Engineer pattern-based features for baseline model.
-    No user tracking - only transaction-level patterns.
+    Engineer features for Advanced 9-class fraud detection
+    
+    Takes raw transaction data and generates 38 features including:
+    - Basic transaction attributes
+    - Velocity features (transaction counts)
+    - Device/SIM change indicators
+    - Amount statistics
+    - Temporal features
     
     Args:
-        input_dict: Dictionary with transaction details
-        
+        df: DataFrame with raw transaction data
+    
     Returns:
-        numpy array or DataFrame with engineered features
+        DataFrame with engineered features ready for model input
     """
     
-    # Extract base fields
-    amount = input_dict.get('amount_inr', 0)
-    hour = input_dict.get('hour', 12)
-    merchant_category = input_dict.get('merchant_category', 'Shopping')
-    failed_txn_count = input_dict.get('failed_txn_count', 0)
+    df = df.copy()
     
-    # Temporal features
-    is_odd_hours = 1 if hour < 6 or hour >= 23 else 0
-    is_late_night = 1 if 2 <= hour < 5 else 0
-    is_business_hours = 1 if 9 <= hour < 17 else 0
-    is_weekend = 0  # Simplified
-    day_of_week = input_dict.get('timestamp', datetime.now()).weekday()
-    month = input_dict.get('timestamp', datetime.now()).month
+    # Encode categorical variables
+    df['device_type'] = df['device_type'].map(config.device_map).fillna(0)
+    df['network_type'] = df['network_type'].map(config.network_map).fillna(1)
+    df['merchant_category'] = df['merchant_category'].map(config.merchant_map).fillna(8)
+    df['txn_type'] = df['txn_type'].map(config.txn_type_map).fillna(0)
     
     # Amount features
-    amount_zscore = (amount - 1311.76) / 1848.06  # Based on dataset stats
-    is_high_amount = 1 if amount >= 4685 else 0
-    is_very_high_amount = 1 if amount >= 8987 else 0
-    is_round_amount = 1 if amount % 1000 == 0 else 0
+    df['amount_zscore'] = (df['amount_inr'] - config.amount_mean) / config.amount_std
+    df['amount_percentile'] = df['amount_inr'].rank(pct=True)
+    df['amount_is_round'] = (df['amount_inr'] % 1000 == 0).astype(int)
     
-    # Merchant risk features
-    high_risk_categories = ['Entertainment', 'Electronics', 'Jewelry', 'Gambling', 'Adult']
-    medium_risk_categories = ['Shopping', 'Travel', 'Luxury']
+    # Amount categories
+    df['amount_zscore_category'] = pd.cut(df['amount_zscore'], 
+                                           bins=[-np.inf, -1, 1, 3, np.inf], 
+                                           labels=[0, 1, 2, 3]).astype(int)
+    df['amount_percentile_category'] = pd.cut(df['amount_percentile'],
+                                               bins=[0, 0.5, 0.9, 0.99, 1.0],
+                                               labels=[0, 1, 2, 3]).astype(int)
     
-    is_high_risk_merchant = 1 if merchant_category in high_risk_categories else 0
-    merchant_risk_score = 3 if is_high_risk_merchant else (2 if merchant_category in medium_risk_categories else 1)
+    # Temporal features
+    df['hour_of_day'] = df.get('hour_of_day', 12)
+    df['is_odd_hours'] = df['hour_of_day'].apply(lambda x: 1 if x < 6 or x > 23 else 0)
+    df['day_of_week'] = 1  # Default to Monday
+    df['is_weekend'] = 0
     
-    # Pattern features
-    failed_txn = 1 if failed_txn_count > 0 else 0
-    large_round_amount = 1 if is_round_amount and is_high_amount else 0
-    odd_hour_high_amount = 1 if is_odd_hours and is_high_amount else 0
-    weekend_high_amount = 1 if is_weekend and is_high_amount else 0
+    # Velocity features (defaults for demo)
+    df['sender_txn_count_1min'] = df.get('sender_txn_count_1min', 1)
+    df['sender_txn_count_1hour'] = df.get('sender_txn_count_1hour', 1)
+    df['sender_txn_count_24h'] = df.get('sender_txn_count_24h', 5)
+    df['time_since_last_txn_sec'] = df.get('time_since_last_txn_sec', 300)
     
-    # Composite risk scores
-    temporal_risk = (is_odd_hours * 2) + (is_late_night * 3) + (1 - is_business_hours)
-    amount_risk = (is_high_amount * 3) + (is_very_high_amount * 3) + (is_round_amount * 2) + min(int(amount_zscore), 1)
-    pattern_risk = (is_high_risk_merchant * 3) + (failed_txn * 4) + (large_round_amount * 2) + (odd_hour_high_amount * 2)
-    total_risk_score = temporal_risk + amount_risk + pattern_risk
+    # Device/SIM features
+    df['device_changed_flag'] = df.get('device_changed_flag', False).astype(int)
+    df['sim_change_recent'] = df.get('sim_change_recent', False).astype(int)
+    df['sim_age_days'] = df.get('sim_age_days', 365)
+    df['location_changed_flag'] = df.get('location_changed_flag', False).astype(int)
+    df['mpin_attempts'] = df.get('mpin_attempts', 0)
     
-    # Create feature array (25 features matching training)
-    features = np.array([[
-        hour, day_of_week, month,
-        is_odd_hours, is_weekend, is_late_night, is_business_hours,
-        amount, amount_zscore,
-        is_high_amount, is_very_high_amount, is_round_amount,
-        is_high_risk_merchant, merchant_risk_score,
-        failed_txn, large_round_amount, odd_hour_high_amount, weekend_high_amount,
-        temporal_risk, amount_risk, pattern_risk, total_risk_score,
-        0, 0, 0  # Padding to match 25 features
-    ]])
+    # Transaction status
+    df['txn_status'] = df.get('txn_status', 'SUCCESS')
+    df['txn_status'] = (df['txn_status'] == 'SUCCESS').astype(int)
     
-    return features
+    # Relationship features
+    df['sender_receiver_history'] = df.get('sender_receiver_history', 0)
+    df['receiver_inbound_count_1h'] = df.get('receiver_inbound_count_1h', 1)
+    df['receiver_outbound_count_1h'] = df.get('receiver_outbound_count_1h', 0)
+    
+    # Merchant features
+    df['high_risk_merchant'] = df['merchant_category'].isin([1, 3, 8]).astype(int)  # Shopping, Entertainment, Other
+    df['merchant_amount_mismatch'] = ((df['merchant_category'] == 0) & (df['amount_inr'] > 5000)).astype(int)
+    
+    # Composite features
+    df['weekend_large_txn'] = (df['is_weekend'] & (df['amount_inr'] > 10000)).astype(int)
+    df['failed_count_before'] = df.get('failed_count_before', 0)
+    df['failed_then_success'] = ((df['failed_count_before'] > 0) & (df['txn_status'] == 1)).astype(int)
+    
+    # Bank and state encoding (simplified)
+    df['sender_bank'] = 0  # Default
+    df['sender_state'] = 0
+    df['sender_age_group'] = 1  # Default to 25-35
+    df['receiver_bank'] = 0
+    df['receiver_state'] = 0
+    df['receiver_age_group'] = 1
+    
+    # Select required features in the correct order
+    feature_cols = [
+        'sender_bank', 'sender_state', 'sender_age_group', 'device_type', 'network_type',
+        'txn_type', 'amount_inr', 'txn_status', 'mpin_attempts', 'device_changed_flag',
+        'sim_change_recent', 'sim_age_days', 'location_changed_flag', 'receiver_bank',
+        'receiver_state', 'receiver_age_group', 'merchant_category', 'high_risk_merchant',
+        'hour_of_day', 'day_of_week', 'is_weekend', 'is_odd_hours', 'amount_is_round',
+        'sender_txn_count_1min', 'sender_txn_count_1hour', 'sender_txn_count_24h',
+        'time_since_last_txn_sec', 'sender_receiver_history', 'receiver_inbound_count_1h',
+        'receiver_outbound_count_1h', 'amount_zscore', 'amount_percentile',
+        'amount_zscore_category', 'amount_percentile_category', 'weekend_large_txn',
+        'merchant_amount_mismatch', 'failed_count_before', 'failed_then_success'
+    ]
+    
+    return df[feature_cols]
 
-
-def engineer_advanced_features(input_dict):
+def engineer_baseline_features(df):
     """
-    Engineer advanced features including user behavior patterns.
-    Includes device tracking, velocity features, and behavioral analytics.
+    Engineer features for Baseline pattern-based detection
+    
+    Simpler feature set focused on:
+    - Amount thresholds
+    - Time of day patterns
+    - Merchant risk
+    - Basic velocity
     
     Args:
-        input_dict: Dictionary with transaction details
-        
+        df: DataFrame with raw transaction data
+    
     Returns:
-        numpy array or DataFrame with engineered features
+        DataFrame with baseline features
     """
     
-    # Start with baseline features
-    baseline_features = engineer_baseline_features(input_dict)
+    df = df.copy()
     
-    # Extract advanced fields
-    device_id = input_dict.get('device_id', 'UNKNOWN')
-    is_new_device = input_dict.get('is_new_device', 0)
-    sim_changed = input_dict.get('sim_changed', 0)
-    recent_txn_count = input_dict.get('recent_txn_count', 0)
+    # Basic encoding
+    df['device_type'] = df['device_type'].map(config.device_map).fillna(0)
+    df['network_type'] = df['network_type'].map(config.network_map).fillna(1)
+    df['merchant_category'] = df['merchant_category'].map(config.merchant_map).fillna(8)
     
-    # Device features
-    device_risk_score = 0
-    if is_new_device:
-        device_risk_score += 3
-    if sim_changed:
-        device_risk_score += 5
+    # Amount features
+    df['amount_inr'] = df['amount_inr']
+    df['amount_high'] = (df['amount_inr'] > 50000).astype(int)
+    df['amount_very_high'] = (df['amount_inr'] > 100000).astype(int)
     
-    # Velocity features
-    velocity_risk = 0
-    if recent_txn_count > 10:
-        velocity_risk = 3
-    elif recent_txn_count > 5:
-        velocity_risk = 2
-    elif recent_txn_count > 2:
-        velocity_risk = 1
+    # Temporal
+    df['hour_of_day'] = df.get('hour_of_day', 12)
+    df['is_odd_hours'] = df['hour_of_day'].apply(lambda x: 1 if x < 6 or x > 23 else 0)
     
-    # Behavioral anomaly score
-    behavioral_risk = device_risk_score + velocity_risk
+    # Merchant risk
+    df['high_risk_merchant'] = df['merchant_category'].isin([1, 3, 8]).astype(int)
     
-    # Additional advanced features
-    is_device_anomaly = 1 if device_risk_score >= 3 else 0
-    is_velocity_anomaly = 1 if velocity_risk >= 2 else 0
-    is_sim_swap_pattern = sim_changed
-    is_high_frequency = 1 if recent_txn_count > 10 else 0
+    # Velocity (simplified)
+    df['txn_count_1min'] = df.get('sender_txn_count_1min', 1)
+    df['high_velocity'] = (df['txn_count_1min'] >= 5).astype(int)
     
-    # Combine with baseline features
-    advanced_features_array = np.array([[
-        is_new_device,
-        sim_changed,
-        recent_txn_count,
-        device_risk_score,
-        velocity_risk,
-        behavioral_risk,
-        is_device_anomaly,
-        is_velocity_anomaly,
-        is_sim_swap_pattern,
-        is_high_frequency
-    ]])
+    # Select baseline features
+    feature_cols = [
+        'amount_inr', 'amount_high', 'amount_very_high', 'hour_of_day', 
+        'is_odd_hours', 'device_type', 'network_type', 'merchant_category',
+        'high_risk_merchant', 'high_velocity'
+    ]
     
-    # Concatenate baseline + advanced features
-    combined_features = np.concatenate([baseline_features, advanced_features_array], axis=1)
-    
-    return combined_features
-
-
-def prepare_features_dataframe(features, feature_names=None):
-    """
-    Convert feature array to pandas DataFrame with column names.
-    Useful for model explanation and debugging.
-    
-    Args:
-        features: numpy array of features
-        feature_names: list of feature column names
-        
-    Returns:
-        pandas DataFrame
-    """
-    if feature_names is None:
-        feature_names = [f'feature_{i}' for i in range(features.shape[1])]
-    
-    return pd.DataFrame(features, columns=feature_names)
+    return df[feature_cols]
